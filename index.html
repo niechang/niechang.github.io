@@ -1,13 +1,125 @@
+
 <!DOCTYPE html>
 <html>
-<head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Chad's Resume</title>
-	<link rel="stylesheet" href="bower_components/bootstrap/dist/css/bootstrap.min.css">
-</head>
-<body>
-  <h1>Welcome to Chad homepage!!<h1>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <title>Chad's Blog</title>
+    <!-- Bootstrap core CSS -->
+    <link href="http://libs.baidu.com/bootstrap/3.0.3/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prettify/r224/prettify.css" type="text/css" rel="stylesheet" />
+    <!-- Custom styles for this template -->
+    <link href="css/blog.css" rel="stylesheet">
+    <link href="css/bootstrap-markdown.min.css" rel="stylesheet">
+   
 
-</body>
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="http://cdn.bootcss.com/html5shiv/3.7.0/html5shiv.js"></script>
+      <script src="http://cdn.bootcss.com/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  </head>
+
+  <body>
+
+    <div class="blog-masthead">
+      <div class="container">
+        <nav class="blog-nav">
+          <a class="blog-nav-item active" href="#">Home</a>
+         <!--  <a class="blog-nav-item" href="#">About</a> -->
+        </nav>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="blog-header"></div>
+      <div class="row">
+        <div class="col-sm-12 text-center blog-loading" id="loading"></div>  
+        <div class="col-sm-9 blog-main">
+
+          <div class="blog-post">
+            <h2 class="blog-post-title" id="post_title"></h2>
+            <p class="blog-post-meta" id="create_time"> 
+            </p>
+            <div data-provide="markdown" id="post_text">
+            </div>
+          </div><!-- /.blog-post -->
+
+         
+
+          <nav>
+            <ul class="pager">
+              <li><a href="#">Previous</a></li>
+              <li><a href="#">Next</a></li>
+            </ul>
+          </nav>
+
+        </div><!-- /.blog-main -->
+
+        <div class="col-sm-3 blog-sidebar">
+          <div class="sidebar-module sidebar-module-inset">
+            <h4>About</h4>
+            <p> 
+              Chad's blog page for sharing for java, javascript and node.js etc. This page is hosted in gitbub and data is stored in firebase.
+            </p>
+          </div>
+          <div class="sidebar-module">
+            <h4>Tags</h4>
+            <ol class="list-unstyled" id="blog_tags">
+            </ol>
+          </div>
+        </div><!-- /.blog-sidebar -->
+
+      </div><!-- /.row -->
+
+    </div><!-- /.container -->
+
+    <div class="blog-footer">
+      <p>Blog built with <a href="http://getbootstrap.com">Bootstrap</a> by <a href="github.com/niechang">@Chad</a>.</p>
+      <p>
+        <a href="#">Back to top</a>
+      </p>
+    </div>
+
+
+    <!-- Bootstrap core JavaScript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="http://libs.baidu.com/jquery/2.0.0/jquery.min.js"></script>
+    <!--<script src="http://libs.baidu.com/bootstrap/3.0.3/js/bootstrap.min.js"></script> -->
+    <script src="https://cdn.firebase.com/js/client/2.0.2/firebase.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/prettify/r224/prettify.js"></script>
+    <script src="js/blog.js"></script>
+    <script type="text/javascript">
+      $(function(){
+        BLOG.Util.loadTags(function(tags) {
+          $.each(tags,function(n,tag) {
+             if(tag)
+                $("<li/>").append($("<a href='#'/>").text(tag.name)).appendTo($("#blog_tags"));
+          });
+        });
+        $("#loading").toggle();
+        BLOG.Util.getLatestOne(function(data) {
+          $(data.text).appendTo($("#post_text"));
+          $("#create_time").text(data.createTime);
+          $("#post_title").text(data.title);
+          if(data.tagNames) {
+              $.each(data.tagNames,function(n,tag){
+                  $("<span class='label label-info'/>").text(tag).appendTo($("#create_time"));
+              });
+              $("#loading").toggle();
+              $("pre").addClass("prettyprint");
+              prettyPrint();
+          }
+        });
+      });
+    </script>
+    <!--<script src="../../assets/js/docs.min.js"></script>-->
+    <!-- IE10 viewport hack for Surface/desktop Windows 8 bug 
+    <script src="../../assets/js/ie10-viewport-bug-workaround.js"></script>
+    -->
+  </body>
 </html>
