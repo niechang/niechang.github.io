@@ -7,7 +7,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="">
     <meta name="author" content="">
-    <link rel="icon" href="../../favicon.ico">
 
     <title>Post Management</title>
     <!-- Bootstrap core CSS -->
@@ -27,6 +26,7 @@
     <div class="blog-masthead">
       <div class="container">
         <nav class="blog-nav">
+          <a class="blog-nav-item" href="index.html">Home</a>
           <a class="blog-nav-item active" href="#">Add Blog</a>
         </nav>
       </div>
@@ -54,7 +54,7 @@
             </label>
           </div>
            <div class="form-group">
-            <textarea name="content" data-provide="markdown" rows="30" id="post_text"></textarea>
+            <textarea name="content" data-provide="markdown" rows="25" id="post_text"></textarea>
           </div>
           <div class="form-group">
             <button type="submit" class="btn btn-primary" id="post_save">Submit</button>
@@ -71,10 +71,9 @@
     </div><!-- /.container -->
 
     <div class="blog-footer">
-      <p>Blog template built for <a href="http://getbootstrap.com">Bootstrap</a> by <a href="github.com/niechang">@Chad</a>. </p>
+      <p>Blog built with <a href="http://getbootstrap.com">Bootstrap</a> by <a href="github.com/niechang">@Chad</a>.</p>
       <p><a href="#">Back to top</a></p>
-    </div>    
-
+    </div>
     <!-- Bootstrap core JavaScript ================================================== -->
     <!-- Placed at the end of the document so the pages load faster -->
     <script src="http://libs.baidu.com/jquery/2.0.0/jquery.min.js"></script>
@@ -83,6 +82,7 @@
     <script src="js/bootstrap-markdown.js"></script>
     <script src="js/blog.js"></script>
     <script>
+
       $(function(){
 
         $("#post_save").click(function(){
@@ -96,6 +96,14 @@
             BLOG.Util.add(title,tags,text);
           }
           return false;
+        });
+
+        BLOG.Util.getAuth(function(data) {
+            if(BLOG.Util.validateAuth(data)) {
+               $('#login_form').hide();
+               $("#blog_form").show();
+               BLOG.Util.countPosts();
+            }
         });
 
         $("#login_btn").click(function(e){

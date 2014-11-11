@@ -28,7 +28,7 @@
     <div class="blog-masthead">
       <div class="container">
         <nav class="blog-nav">
-          <a class="blog-nav-item active" href="#">Home</a>
+          <a class="blog-nav-item active" href="index.html">Home</a>
          <!--  <a class="blog-nav-item" href="#">About</a> -->
         </nav>
       </div>
@@ -42,18 +42,15 @@
 
           <div class="blog-post">
             <h2 class="blog-post-title" id="post_title"></h2>
-            <p class="blog-post-meta" id="create_time"> 
-            </p>
+            <p class="blog-post-meta" id="create_time"></p>
             <div data-provide="markdown" id="post_text">
             </div>
           </div><!-- /.blog-post -->
 
-         
-
           <nav>
             <ul class="pager">
-              <li><a href="#">Previous</a></li>
-              <li><a href="#">Next</a></li>
+              <li><a href="#" id="pre_blog" class="btn">Previous</a></li>
+              <li><a href="#" id="next_blog" class="btn">Next</a></li>
             </ul>
           </nav>
 
@@ -63,7 +60,8 @@
           <div class="sidebar-module sidebar-module-inset">
             <h4>About</h4>
             <p> 
-              Chad's blog page for sharing for java, javascript and node.js etc. This page is hosted in gitbub and data is stored in firebase.
+              Chad's blog page for sharing java, javascript and node.js etc. This blog is hosted in 
+              <a href="https://github.com/">github</a> and data is stored in <a href="https://www.firebase.com/">firebase</a>.
             </p>
           </div>
           <div class="sidebar-module">
@@ -95,25 +93,59 @@
     <script src="js/blog.js"></script>
     <script type="text/javascript">
       $(function(){
+
         BLOG.Util.loadTags(function(tags) {
           $.each(tags,function(n,tag) {
              if(tag)
                 $("<li/>").append($("<a href='#'/>").text(tag.name)).appendTo($("#blog_tags"));
           });
         });
-        $("#loading").toggle();
-        BLOG.Util.getLatestOne(function(data) {
+
+        function hanldleBtns() {
+          $("#next_blog").toggleClass("disabled", !BLOG.Util.hasNext());
+          $("#pre_blog").toggleClass("disabled", !BLOG.Util.hasPrevious());
+        }
+
+        function renderBlog(data) {
+          if (!data) return;
+          $("#post_text").empty();
+          $("#create_time").empty();
+          $("#post_title").empty();
           $(data.text).appendTo($("#post_text"));
           $("#create_time").text(data.createTime);
           $("#post_title").text(data.title);
           if(data.tagNames) {
-              $.each(data.tagNames,function(n,tag){
-                  $("<span class='label label-info'/>").text(tag).appendTo($("#create_time"));
-              });
-              $("#loading").toggle();
-              $("pre").addClass("prettyprint");
-              prettyPrint();
+            $.each(data.tagNames,function(n,tag){
+                $("<span class='label label-info'/>").text(tag).appendTo($("#create_time"));
+            });
           }
+          $("pre").addClass("prettyprint");
+          prettyPrint();
+        }
+
+        $("#pre_blog").click(function() {
+            BLOG.Util.previous(function(data) {
+               if(data) {
+                 renderBlog(data);
+               } 
+               hanldleBtns();
+            });
+        });
+
+        $("#next_blog").click(function() {
+            BLOG.Util.next(function(data) {
+               if(data) {
+                 renderBlog(data);
+               }
+               hanldleBtns();
+            });
+        });
+
+        $("#loading").toggle();
+        BLOG.Util.getLatestOne(function(data) {
+            renderBlog(data);
+            $("#loading").toggle();
+            hanldleBtns();
         });
       });
     </script>
