@@ -39,22 +39,11 @@
            <div class="form-group">
             <input name="title" type="text" placeholder="Title?" class="form-control" />
            </div>
-          <div class="form-group">
-            <label class="checkbox-inline">
-              <input type="checkbox"  value="1" name="tags">Java基础
-            </label>
-            <label class="checkbox-inline">
-              <input type="checkbox"  value="2" name="tags">JDK源码
-            </label>
-             <label class="checkbox-inline">
-              <input type="checkbox"  value="3" name="tags">Javascript
-            </label>
-            <label class="checkbox-inline">
-              <input type="checkbox"  value="4" name="tags">Node.js
-            </label>
+          <div class="form-group" id="blog_tags">
+            
           </div>
            <div class="form-group">
-            <textarea name="content" data-provide="markdown" rows="25" id="post_text"></textarea>
+            <textarea name="content" data-provide="markdown" rows="30" id="post_text"></textarea>
           </div>
           <div class="form-group">
             <button type="submit" class="btn btn-primary" id="post_save">Submit</button>
@@ -84,7 +73,7 @@
     <script>
 
       $(function(){
-
+        //save blog clicked
         $("#post_save").click(function(){
           var title = $("input[name='title']").val() || "";
           var text = $("#post_text").val() || "";
@@ -97,21 +86,30 @@
           }
           return false;
         });
-
+        //get auth
         BLOG.Util.getAuth(function(data) {
-            if(BLOG.Util.validateAuth(data)) {
-               $('#login_form').hide();
-               $("#blog_form").show();
-               BLOG.Util.countPosts();
-            }
+            afterLogin(data);
         });
 
+        function afterLogin(data) {
+          if(BLOG.Util.validateAuth(data)) {
+             $('#login_form').hide();
+             $("#blog_form").show();
+             BLOG.Util.countPosts();
+             BLOG.Util.loadTags(function(tags) {
+                $.each(tags,function(n,tag) {
+                   if(tag) {
+                      $("<label class='checkbox-inline'/>").text(tag.name)
+                        .append($("<input type='checkbox'  value='" + n + "'/>")).appendTo($("#blog_tags"));
+                   }
+                });
+             });
+          }
+        }
+        //login button clicked
         $("#login_btn").click(function(e){
            BLOG.Util.login(function(user) {
-              if(user && user.uid) {
-                $('#login_form').hide();
-                $("#blog_form").show();
-              }
+              afterLogin(user);
            });
            return false;
         });

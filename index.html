@@ -34,27 +34,31 @@
       </div>
     </div>
 
-    <div class="container">
+    
+   
+    <div class="container" >
       <div class="blog-header"></div>
       <div class="row">
         <div class="col-sm-12 text-center blog-loading" id="loading"></div>  
-        <div class="col-sm-9 blog-main">
-
+        <div class="col-sm-9 blog-main" id="blog_content">
           <div class="blog-post">
             <h2 class="blog-post-title" id="post_title"></h2>
             <p class="blog-post-meta" id="create_time"></p>
             <div data-provide="markdown" id="post_text">
             </div>
           </div><!-- /.blog-post -->
-
           <nav>
             <ul class="pager">
               <li><a href="#" id="pre_blog" class="btn">Previous</a></li>
               <li><a href="#" id="next_blog" class="btn">Next</a></li>
             </ul>
           </nav>
-
         </div><!-- /.blog-main -->
+        
+        <div class="col-sm-9 tag-content" style="display:none" id="tag_content" >
+          <table class="table table-hover"  >
+          </table>
+        </div> <!--tag list content-->
 
         <div class="col-sm-3 blog-sidebar">
           <div class="sidebar-module sidebar-module-inset">
@@ -94,12 +98,63 @@
     <script type="text/javascript">
       $(function(){
 
-        BLOG.Util.loadTags(function(tags) {
-          $.each(tags,function(n,tag) {
-             if(tag)
-                $("<li/>").append($("<a href='#'/>").text(tag.name)).appendTo($("#blog_tags"));
+        function getTagNames(tags) {
+           var name = "";
+           $.each(tags, function(n,tag) {
+              name += BLOG.Util.getTag(tag) + " "; 
+           });
+           return name;
+        }
+
+        function switch2BlogView() {
+          var blogKey = $(this).attr("data-provide");
+          BLOG.Util.loadBlog(blogKey, function(blog){
+              $("#tag_content").hide();
+              $("#blog_content").show();
+              renderBlog(blog);
           });
+        }
+
+        function switch2TagView() {
+          var tagKey = $(this).attr("data-provide"), tagName;
+          BLOG.Util.getPosts(tagKey, function(blogs) {
+             var  $td,
+                  $link,
+                  tagContent = $("#tag_content"),
+                  table = tagContent.children("table"); 
+             table.empty();
+             $.each(blogs, function(n,blog) {
+                tagName = getTagNames(blog.tags);
+                $link = $("<a herf='#' data-provide='" + blog.key + "'>").text(blog.title);
+                $link.click(switch2BlogView);
+                $td = $("<td>").append($link);
+                $("<tr/>").append($td).append($("<td>").text(tagName))
+                    .append($("<td>").text(blog.createTime)).appendTo(table);   
+             });
+             $("#blog_content").hide();
+             tagContent.show();
+          });
+        }
+
+        //body load rendering tags
+        BLOG.Util.loadTags(function(tags) {
+          var count = 0, text, $li;
+          $.each(tags,function(n,tag) {
+             if(tag) {
+                text = tag.name;
+                count = (tag.posts && tag.posts.length) || 0;
+                if(count) 
+                  text = text + " (" + count + ")";  
+                $li = $("<li data-provide='"+ n +"' />").append($("<a href='#'/>").text(text)).appendTo($("#blog_tags"));
+                $li.click(switch2TagView);
+             }
+          });
+          /*
+          $("#blog_tags>li").click(function(){
+              
+          });*/
         });
+
 
         function hanldleBtns() {
           $("#next_blog").toggleClass("disabled", !BLOG.Util.hasNext());
@@ -123,6 +178,7 @@
           prettyPrint();
         }
 
+        //previous button
         $("#pre_blog").click(function() {
             BLOG.Util.previous(function(data) {
                if(data) {
@@ -131,7 +187,7 @@
                hanldleBtns();
             });
         });
-
+        //next button
         $("#next_blog").click(function() {
             BLOG.Util.next(function(data) {
                if(data) {
@@ -141,6 +197,7 @@
             });
         });
 
+        //body load rendering the latest post
         $("#loading").toggle();
         BLOG.Util.getLatestOne(function(data) {
             renderBlog(data);

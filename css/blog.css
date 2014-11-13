@@ -112,6 +112,9 @@ h6, .h6 {
   background:url(../images/loading.gif) no-repeat;
 }
 
+.tag-content a:hover{
+   cursor: pointer;
+}
 /* Sidebar modules for boxing content */
 .sidebar-module {
   padding: 15px;
