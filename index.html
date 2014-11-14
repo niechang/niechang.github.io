@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
   <head>
@@ -9,8 +8,8 @@
     <meta name="author" content="">
     <title>Chad's Blog</title>
     <!-- Bootstrap core CSS -->
-    <link href="http://libs.baidu.com/bootstrap/3.0.3/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/prettify/r224/prettify.css" type="text/css" rel="stylesheet" />
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/prettify.css" type="text/css" rel="stylesheet" />
     <!-- Custom styles for this template -->
     <link href="css/blog.css" rel="stylesheet">
     <link href="css/bootstrap-markdown.min.css" rel="stylesheet">
@@ -90,49 +89,56 @@
     <!-- Bootstrap core JavaScript
     ================================================== -->
     <!-- Placed at the end of the document so the pages load faster -->
-    <script src="http://libs.baidu.com/jquery/2.0.0/jquery.min.js"></script>
-    <!--<script src="http://libs.baidu.com/bootstrap/3.0.3/js/bootstrap.min.js"></script> -->
-    <script src="https://cdn.firebase.com/js/client/2.0.2/firebase.js"></script>
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/prettify/r224/prettify.js"></script>
-    <script src="js/blog.js"></script>
+    <script type="text/javascript" src="js/jquery.min.js"></script>
+    <script type="text/javascript" src="js/firebase.js"></script>
+    <script type="text/javascript" src="js/prettify.js"></script>
+    <script type="text/javascript" src="js/blog.js"></script>
     <script type="text/javascript">
       $(function(){
 
         function getTagNames(tags) {
            var name = "";
            $.each(tags, function(n,tag) {
-              name += BLOG.Util.getTag(tag) + " "; 
+              name += BLOG.Util.getTag(tag).name + " "; 
            });
            return name;
         }
 
         function switch2BlogView() {
           var blogKey = $(this).attr("data-provide");
+          $("#loading").toggle();
           BLOG.Util.loadBlog(blogKey, function(blog){
+              renderBlog(blog);
+              $("#loading").toggle();
               $("#tag_content").hide();
               $("#blog_content").show();
-              renderBlog(blog);
+              hanldleBtns();
           });
         }
 
         function switch2TagView() {
-          var tagKey = $(this).attr("data-provide"), tagName;
+          var tagKey = $(this).attr("data-provide"),
+              tag = BLOG.Util.getTag(tagKey),
+              tagName;
+          if(tag.posts && tag.posts.length)    
+              $("#loading").toggle();
           BLOG.Util.getPosts(tagKey, function(blogs) {
-             var  $td,
-                  $link,
-                  tagContent = $("#tag_content"),
-                  table = tagContent.children("table"); 
-             table.empty();
-             $.each(blogs, function(n,blog) {
-                tagName = getTagNames(blog.tags);
-                $link = $("<a herf='#' data-provide='" + blog.key + "'>").text(blog.title);
-                $link.click(switch2BlogView);
-                $td = $("<td>").append($link);
-                $("<tr/>").append($td).append($("<td>").text(tagName))
-                    .append($("<td>").text(blog.createTime)).appendTo(table);   
-             });
-             $("#blog_content").hide();
-             tagContent.show();
+               var  $td,
+                    $link,
+                    tagContent = $("#tag_content"),
+                    table = tagContent.children("table"); 
+               table.empty();
+               $.each(blogs, function(n,blog) {
+                  tagName = getTagNames(blog.tags);
+                  $link = $("<a herf='#' data-provide='" + blog.key + "'>").text(blog.title);
+                  $link.click(switch2BlogView);
+                  $td = $("<td>").append($link);
+                  $("<tr/>").append($td).append($("<td>").text(tagName))
+                      .append($("<td>").text(blog.createTime)).appendTo(table);   
+               });
+               $("#loading").toggle();
+               $("#blog_content").hide();
+               tagContent.show();
           });
         }
 
@@ -149,10 +155,6 @@
                 $li.click(switch2TagView);
              }
           });
-          /*
-          $("#blog_tags>li").click(function(){
-              
-          });*/
         });
 
 
@@ -178,37 +180,44 @@
           prettyPrint();
         }
 
+        //body load rendering the latest post
+        function init() {
+          $("#loading").toggle();
+          BLOG.Util.getLatestOne(function(data) {
+              renderBlog(data);
+              $("#loading").toggle();
+              hanldleBtns();
+          });
+        }
+
         //previous button
         $("#pre_blog").click(function() {
+            $("#loading").toggle();
             BLOG.Util.previous(function(data) {
                if(data) {
                  renderBlog(data);
                } 
                hanldleBtns();
+               $("#loading").toggle();
             });
         });
         //next button
         $("#next_blog").click(function() {
+            $("#loading").toggle();
             BLOG.Util.next(function(data) {
                if(data) {
                  renderBlog(data);
                }
                hanldleBtns();
+               $("#loading").toggle();
             });
         });
 
-        //body load rendering the latest post
-        $("#loading").toggle();
-        BLOG.Util.getLatestOne(function(data) {
-            renderBlog(data);
-            $("#loading").toggle();
-            hanldleBtns();
-        });
+        init();
       });
     </script>
-    <!--<script src="../../assets/js/docs.min.js"></script>-->
     <!-- IE10 viewport hack for Surface/desktop Windows 8 bug 
-    <script src="../../assets/js/ie10-viewport-bug-workaround.js"></script>
+    <script src="js/ie10-viewport-bug-workaround.js"></script>
     -->
   </body>
 </html>
