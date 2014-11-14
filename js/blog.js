@@ -69,8 +69,9 @@
 			cb(TAGS_CACHE);
 		});
 	}
+	
 	BLOG.Util.getTag = function(key) {
-		return TAGS_CACHE[key].name;
+		return TAGS_CACHE[key];
 	}
 
 	BLOG.Util.countPosts = function (cb) {
