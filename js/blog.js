@@ -52,15 +52,44 @@ BLOG = {};
 		cb(authData);
 	}
 
+	//items in first but not in second array
+	function inANotB(first,second) {
+		var result = [], i, j;
+		if(!first || !second) {
+			return result;
+		}
+		for(i = 0; i < first.length; i++) {
+			if(second.indexOf(first[i]) == -1) {
+				result.push(first[i]);
+			}
+		}
+		return result;
+	}
+
+	function maxAndmin(array) {
+		var max, min, i;
+		max = min = array[0];
+		for(i = 1; i < array.length; i++) {
+			if(array[i] > max) {
+				max = array[i];
+			}
+			if(array[i] < min) {
+				min = array[i];
+			}
+		}
+		return {max:max, min:min};
+	}
+
 	/*
-	 * add a blog
+	 * add or update a blog
 	 * @property {int} [key]
-	   @property {string} title
-	   @property {int[]}  tags
-	   @param {string} text
+	 * @property {string} title
+	 * @property {int[]}  tags
+	 * @param {string} text
 	 */
-	BLOG.Util.save = function(item, text, cb) {
-		var blogKey, update = false, blogItem;
+	BLOG.Util.saveBlog = function(item, text, oldTags, cb) {
+		var blogKey, update = false, blogItem, addTagRefs, rmTagRefs, 
+			rmTags, addTags, refs;
 		if(item.key && !isNaN(item.key)) {
 			blogKey = item.key;
 			update = true;
@@ -74,16 +103,39 @@ BLOG = {};
 		textsRef.child(blogKey).set({ //saving blog text content
 			text: text
 		});
-		if (update) {
+		if (update) { //update a post
+			rmTags = inANotB(oldTags, item.tags); //need remove
+			addTags = inANotB(item.tags, oldTags); //need add
+			if (rmTags.length > 0) {
+				rmTagRefs = getTagRefs(rmTags);
+				removeTags(rmTagRefs, blogKey);
+			} 
+			if (addTags.length > 0) {
+				addTagRefs = getTagRefs(addTags);
+				saveTags(addTagRefs, blogKey);
+			} 
 			return;
+		} else { //add a post
+			addTagRefs = getTagRefs(item.tags);
+			saveTags(addTagRefs, blogKey);
+			count++;
 		}
+	}
+
+	function getTagRefs(tags) {
 		var tagRefs = [];
-		$.each(item.tags,function(n,tag) { //update tag reference
+		$.each(tags,function(n,tag) { 
 			tagRefs.push(tagsRef.child(tag));
 		});
+		return tagRefs;
+	}
+
+	//tagRefs add blogKey
+	function saveTags (tagRefs, blogKey) {
 		$.each(tagRefs,function(n,tagRef) {
 			tagRef.once("value", function (snap) {
 				var val = snap.val();
+				blogKey = parseInt(blogKey, 10);
 				if (!val.posts) {
 					val.posts = [];
 				}
@@ -91,10 +143,21 @@ BLOG = {};
 				tagRef.update(val);
 			});
 		});	
-		count++;
 	}
 
-
+	function removeTags(tagRefs, blogKey) {
+		$.each(tagRefs,function(n,tagRef) {
+			tagRef.once("value", function (snap) {
+				var val = snap.val(), index;
+				blogKey = parseInt(blogKey, 10);
+				if (!val.posts || (index = val.posts.indexOf(blogKey)) === -1) {
+					return;
+				}
+				val.posts.splice(blogKey, 1); //remove
+				tagRef.update(val);
+			});
+		});	
+	}
 
 	BLOG.Util.loadTags = function (cb) {
 		tagsRef.once("value", function (snap){
@@ -229,8 +292,9 @@ BLOG = {};
 		}
 		if(tag && tag.posts && tag.posts.length > 0) {
 			var posts = tag.posts,
-				min = "" + posts[0],
-				max = "" + posts[posts.length - 1],
+				obj = maxAndmin(tag.posts),
+				min = "" + obj.min,
+				max = "" + obj.max,
 				blogArray = [];
 			blogsRef.orderByKey().startAt(min).endAt(max).once("value", function(snapshot) {
 				var blogs = snapshot.val();
