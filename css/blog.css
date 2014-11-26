@@ -115,6 +115,9 @@ h6, .h6 {
 .tag-content a:hover{
    cursor: pointer;
 }
+.blog-admin a:hover {
+  cursor: pointer;
+}
 /* Sidebar modules for boxing content */
 .sidebar-module {
   padding: 15px;

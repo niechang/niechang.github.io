@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>Post Management</title>
+    <!-- Bootstrap core CSS -->
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <!-- Custom styles for this template -->
+    <link href="css/blog.css" rel="stylesheet">
+    <link href="css/bootstrap-markdown.min.css" rel="stylesheet">
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="http://cdn.bootcss.com/html5shiv/3.7.0/html5shiv.js"></script>
+      <script src="http://cdn.bootcss.com/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  </head>
+
+  <body>
+
+    <div class="blog-masthead">
+      <div class="container">
+        <nav class="blog-nav">
+          <a class="blog-nav-item" href="index.html">Home</a>
+          <a class="blog-nav-item active" href="manage.html">Manage</a>
+        </nav>
+      </div>
+    </div>
+
+    <div class="container blog-admin">
+      <div class="blog-header"></div>
+      <div class="row">
+        <table class="table table-hover"  id="blogs_list"> <!-- list blogs-->
+        </table>
+
+        <form role="form" method="post" id="blog_form" style="display:none"> <!-- add blog form-->
+           <div class="form-group">
+            <input name="title" type="text" placeholder="Title?" class="form-control" />
+            <input name="id" type="hidden" id="post_id"/>
+            <input name="tags" type="hidden" id="post_tags"/>
+            <input name="tags" type="hidden" id="create_time"/>
+           </div>
+          <div class="form-group" id="blog_tags">
+            
+          </div>
+           <div class="form-group">
+            <textarea name="content" data-provide="markdown" rows="30" id="post_text"></textarea>
+          </div>
+          <div class="form-group">
+            <button type="submit" class="btn btn-primary" id="post_save">Submit</button>
+          </div>
+        </form> 
+
+        <div id="login_form"> <!-- login form -->
+            <div class="form-group text-center">
+             <button type="submit" class="btn btn-primary btn-lg" id="login_btn">Login in with GitHub </button>
+            </div>
+        </div>
+      </div><!-- /.row -->
+
+    </div><!-- /.container -->
+
+    <div class="blog-footer">
+      <p>Blog built with <a href="http://getbootstrap.com">Bootstrap</a> by <a href="github.com/niechang">@Chad</a>.</p>
+      <p><a href="#">Back to top</a></p>
+    </div>
+    <!-- Bootstrap core JavaScript ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script type="text/javascript" src="js/jquery.min.js"></script>
+    <script type="text/javascript" src="js/firebase.js"></script>
+    <script type="text/javascript" src="js/bootstrap-markdown.js"></script>
+    <script type="text/javascript" src="js/blog.js"></script>
+    <script>
+
+      $(function(){
+        var tagsLoaded = false;
+        //save blog clicked
+        $("#post_save").click(function(){
+          var title = $("input[name='title']").val() || "";
+          var text = $("#post_text").val() || "";
+          var id = $("#post_id").val() || "";
+          var createTime = $("#create_time").val() || "";
+          var tags = []; 
+          $("input[type='checkbox']:checked").each(function(){ 
+              tags.push($(this).val()); 
+          }); 
+
+          if (title != "" && text != "" && tags.length > 0) {
+            item = {
+              title: title,
+              createTime: createTime,
+              tags: tags,
+              key: id
+            };
+            BLOG.Util.save(item, text, function () {
+                alert("Save successfully!");
+            });
+          }
+          return false;
+        });
+        //get auth
+        BLOG.Util.getAuth(function(data) {
+            afterLogin(data);
+        });
+
+        function afterLogin(data) {
+          if(BLOG.Util.validateAuth(data)) {
+             $('#login_form').hide();
+             switch2ListView();
+          }
+        }
+
+        function editBlog() {
+           var blogKey = $(this).attr("data-provide"),
+               $table = $("#blogs_list"),
+               $title = $("input[name='title']");
+           $table.hide();
+           loadTags();
+           BLOG.Util.loadBlog(blogKey, false, function(blog) {
+               $("input[name='title']").val(blog.title);
+               $("#post_text").val(blog.text);
+               $("#post_id").val(blogKey);
+               $("#post_tags").val(blog.tags);
+               $("#create_time").val(blog.createTime);
+               $("#blog_form").show();
+               $.each(blog.tags,function(n,tag) {
+                  $("input[value=" + tag +"]").attr("checked","true");
+               });
+           });
+        }
+
+        function switch2ListView() {
+            BLOG.Util.loadAll(function (blogs) {
+                var $table = $("#blogs_list"),
+                    $td;
+                $table.show();
+                $table.empty();
+                $.each(blogs, function(n,blog) {
+                  $link = $("<a href='index.html?id=" + blog.key + "'>").text(blog.title);
+                  $editLink = $("<a href='#' data-provide='" + blog.key + "'>").text("编辑");
+                  $editLink.click(editBlog);
+                  $td = $("<td>").append($link);
+                  $("<tr/>").append($td).append($("<td>").text(blog.tagNames))
+                      .append($("<td>").text(blog.createTime)).append($("<td>").append($editLink))
+                      .appendTo($table);   
+               });
+            });
+        }
+
+        function loadTags() {
+          if(!tagsLoaded) {
+            BLOG.Util.loadTags(function(tags) {
+                $.each(tags,function(n,tag) {
+                   if(tag) {
+                      $("<label class='checkbox-inline'/>").text(tag.name)
+                        .append($("<input type='checkbox'  value='" + n + "'/>")).appendTo($("#blog_tags"));
+                   }
+                });
+                tagsLoaded = true;
+            });
+          }
+        }
+
+        function switch2ItemView(data) {
+            $("#blog_form").show();
+            BLOG.Util.countPosts();
+            if(tagsLoaded) {
+              BLOG.Util.loadTags(function(tags) {
+                  $.each(tags,function(n,tag) {
+                     if(tag) {
+                        $("<label class='checkbox-inline'/>").text(tag.name)
+                          .append($("<input type='checkbox'  value='" + n + "'/>")).appendTo($("#blog_tags"));
+                     }
+                  });
+                  tagsLoaded = true;
+              });
+            }
+        }
+
+        //login button clicked
+        $("#login_btn").click(function(e){
+           BLOG.Util.login(function(user) {
+              afterLogin(user);
+           });
+           return false;
+        });
+      });
+    </script>
+    
+    <!-- IE10 viewport hack for Surface/desktop Windows 8 bug 
+    <script src="js/ie10-viewport-bug-workaround.js"></script>
+    -->
+  </body>
+</html>

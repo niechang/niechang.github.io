@@ -1,4 +1,20 @@
- BLOG = {};
+$.extend({
+  getUrlVars: function(){
+    var vars = [], hash;
+    var hashes = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&');
+    for(var i = 0; i < hashes.length; i++){
+      hash = hashes[i].split('=');
+      vars.push(hash[0]);
+      vars[hash[0]] = hash[1];
+    }
+    return vars;
+  },
+  getURLParam: function(name){
+    return $.getUrlVars()[name];
+  }
+});
+
+BLOG = {};
 (function(){
 	var blogsRef = new Firebase('https://blistering-inferno-5110.firebaseio.com/blogs');
 	var tagsRef = new Firebase('https://blistering-inferno-5110.firebaseio.com/tags');
@@ -8,7 +24,7 @@
 	var TAGS_CACHE; // tags cache [{name:'',posts:[]},{}]
 	var BLOGS_CACHE = {}; //{{tagKey: {key: {}}}, ... }
 
-	var count = 0, current = 0;
+	var count = -1, current = 0;
 
 	function date2String(date) {
 		return date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + ((date.getDate() > 9) ? date.getDate() : "0" + date.getDate())
@@ -36,18 +52,33 @@
 		cb(authData);
 	}
 
-	BLOG.Util.add = function(title,tags,text,cb) {
-		var blogKey = count;
-		blogsRef.child(blogKey).set({
-			title: title,
-			tags: tags,
-			createTime: date2String(new Date())
-		});
+	/*
+	 * add a blog
+	 * @property {int} [key]
+	   @property {string} title
+	   @property {int[]}  tags
+	   @param {string} text
+	 */
+	BLOG.Util.save = function(item, text, cb) {
+		var blogKey, update = false, blogItem;
+		if(item.key && !isNaN(item.key)) {
+			blogKey = item.key;
+			update = true;
+		} else {
+			blogKey = count;
+		}
+		if(!update) {
+			item.createTime = date2String(new Date());
+		}
+		blogsRef.child(blogKey).set(item); //save item
 		textsRef.child(blogKey).set({ //saving blog text content
 			text: text
 		});
+		if (update) {
+			return;
+		}
 		var tagRefs = [];
-		$.each(tags,function(n,tag) { //update tag reference
+		$.each(item.tags,function(n,tag) { //update tag reference
 			tagRefs.push(tagsRef.child(tag));
 		});
 		$.each(tagRefs,function(n,tagRef) {
@@ -62,6 +93,8 @@
 		});	
 		count++;
 	}
+
+
 
 	BLOG.Util.loadTags = function (cb) {
 		tagsRef.once("value", function (snap){
@@ -90,7 +123,7 @@
 	BLOG.Util.next = function (cb) {
 		if(current < count - 1) {
 			current++;
-			BLOG.Util.loadBlog(current,cb);
+			BLOG.Util.loadBlog(current,false,cb);
 		} else {
 			cb();
 		}
@@ -99,7 +132,7 @@
 	BLOG.Util.previous = function (cb) {
 		if(current > 0) {
 			current--;
-			BLOG.Util.loadBlog(current,cb);
+			BLOG.Util.loadBlog(current,false,cb);
 		} else {
 			cb();
 		}
@@ -113,13 +146,8 @@
 		return current > 0 && count > 0;
 	}
 
-	BLOG.Util.loadBlog = function(key,cb) {
-		if(current < 0) {
-			cb();
-			return;
-		}
+	function getBlog(key,cb) {
 		var blog, tagNames = [];
-		current = parseInt(key, 10);
 		blogsRef.child(key).once("value",function(snapshot) {
 			blog = snapshot.val();
   			if (TAGS_CACHE) {
@@ -135,17 +163,57 @@
 		});
 	}
 
-	/** 
-	  * Get the latest one post in blogs
-	  * @param {Function} cb
-	  */
-	BLOG.Util.getLatestOne = function (cb) {
-		var blog, tagNames = [];
-		if (count === 0) {
+
+	BLOG.Util.loadBlog = function(key,latest,cb) {
+		current = parseInt(key, 10);
+		if(current < 0) {
+			cb();
+			return;
+		}
+		if (count === -1) {
 			BLOG.Util.countPosts(function () {
-				current = count - 1;
-				BLOG.Util.loadBlog(current, cb);
+				current = latest ? count - 1 : current;			
+				getBlog(current, cb);
 			});
+		} else {
+			getBlog(current, cb);
+		}
+	}
+
+	function getTagNames(tags, cachedTag) {
+       var name = "";
+       $.each(tags, function(n,tag) {
+          name += TAGS_CACHE[tag].name + " "; 
+       });
+       return name;
+    }
+	//@private load all blogs
+	function loadBlogs(tags, cb){
+		blogsRef.once("value",function(snapshot) {
+			var blogs = snapshot.val(),
+				blogArray = [];
+			if(blogs) {
+				$.each(blogs, function(n, blog) {
+					blog.key = n;
+					blog.tagNames = getTagNames(blog.tags);
+					blogArray.unshift(blog);
+				});
+				cb(blogArray);
+			}
+		});
+	}
+
+	/**
+     * load all blogs without text content
+     * param {@Function} cb
+	 */
+	BLOG.Util.loadAll = function (cb) {
+		if (!TAGS_CACHE) {
+			BLOG.Util.loadTags(function(tags) {
+				loadBlogs(tags,cb);
+			});
+		} else {
+			loadBlogs(tags,cb);
 		}
 	}
 
@@ -170,7 +238,8 @@
 					$.each(blogs, function(n, blog) {
 						if(posts.indexOf(parseInt(n, 10)) > -1) {
 							blog.key = n;
-							blogArray.push(blog);
+							blog.tagNames = getTagNames(blog.tags);
+							blogArray.unshift(blog);
 						}
 					});
 					BLOGS_CACHE["tags"+tagKey] = blogArray;

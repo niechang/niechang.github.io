@@ -96,18 +96,10 @@
     <script type="text/javascript">
       $(function(){
 
-        function getTagNames(tags) {
-           var name = "";
-           $.each(tags, function(n,tag) {
-              name += BLOG.Util.getTag(tag).name + " "; 
-           });
-           return name;
-        }
-
         function switch2BlogView() {
           var blogKey = $(this).attr("data-provide");
           $("#loading").toggle();
-          BLOG.Util.loadBlog(blogKey, function(blog){
+          BLOG.Util.loadBlog(blogKey, false, function(blog){
               renderBlog(blog);
               $("#loading").toggle();
               $("#tag_content").hide();
@@ -129,11 +121,11 @@
                     table = tagContent.children("table"); 
                table.empty();
                $.each(blogs, function(n,blog) {
-                  tagName = getTagNames(blog.tags);
-                  $link = $("<a herf='#' data-provide='" + blog.key + "'>").text(blog.title);
+                  //tagName = getTagNames(blog.tags);
+                  $link = $("<a href='#' data-provide='" + blog.key + "'>").text(blog.title);
                   $link.click(switch2BlogView);
                   $td = $("<td>").append($link);
-                  $("<tr/>").append($td).append($("<td>").text(tagName))
+                  $("<tr/>").append($td).append($("<td>").text(blog.tagNames))
                       .append($("<td>").text(blog.createTime)).appendTo(table);   
                });
                $("#loading").toggle();
@@ -183,7 +175,14 @@
         //body load rendering the latest post
         function init() {
           $("#loading").toggle();
-          BLOG.Util.getLatestOne(function(data) {
+          var id = $.getURLParam("id"), latest = false;
+          if(!id || isNaN(id)) {
+             latest = true;
+             id = 0; 
+          } else {
+             id = parseInt(id, 10);
+          }
+          BLOG.Util.loadBlog(id, latest, function(data) {
               renderBlog(data);
               $("#loading").toggle();
               hanldleBtns();
