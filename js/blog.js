@@ -179,7 +179,7 @@ BLOG = {};
 			else {
 				count = Object.keys(val).length;
 			}
-			cb && cb();
+			cb && cb(count);
 		});
 	}
 
@@ -213,7 +213,7 @@ BLOG = {};
 		var blog, tagNames = [];
 		blogsRef.child(key).once("value",function(snapshot) {
 			blog = snapshot.val();
-  			if (TAGS_CACHE) {
+  			if (TAGS_CACHE && blog && blog.tags) {
   				$.each(blog.tags,function(n,tag) {
   					tagNames.push(TAGS_CACHE[tag].name);
   				});

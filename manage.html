@@ -55,7 +55,7 @@
             <textarea name="content" data-provide="markdown" rows="30" id="post_text"></textarea>
           </div>
           <div class="form-group">
-            <button type="submit" class="btn btn-primary" id="post_save">Submit</button>
+            <button type="submit" class="btn btn-primary" id="post_save">Save</button>
             <button type="button" class="btn btn-primary" id="return_btn">Return</button>
           </div>
         </form> 
@@ -85,10 +85,17 @@
         var tagsLoaded = false,
             originTags = [],
             login = false;
-
+        //adding a post
         $("#add_post").click(function (){
+            var $this = $(this);
+            $this.addClass("disabled");
             loadTags();
             clearForm();
+            BLOG.Util.countPosts(function(data){
+                if(data >= 0) {
+                    $this.removeClass("disabled");
+                }
+            });
             toggleView();
         });
 
@@ -196,9 +203,8 @@
           }
         }
 
-        function switch2ItemView(data) {
+        /*function switch2ItemView(data) {
             $("#blog_form").show();
-            BLOG.Util.countPosts();
             if(tagsLoaded) {
               BLOG.Util.loadTags(function(tags) {
                   $.each(tags,function(n,tag) {
@@ -210,7 +216,7 @@
                   tagsLoaded = true;
               });
             }
-        }
+        }*/
 
         //login button clicked
         $("#login_btn").click(function(e){
