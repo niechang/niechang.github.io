@@ -12,8 +12,6 @@
     <link href="css/prettify.css" type="text/css" rel="stylesheet" />
     <!-- Custom styles for this template -->
     <link href="css/blog.css" rel="stylesheet">
-    <link href="css/bootstrap-markdown.min.css" rel="stylesheet">
-   
 
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
@@ -43,7 +41,7 @@
           <div class="blog-post">
             <h2 class="blog-post-title" id="post_title"></h2>
             <p class="blog-post-meta" id="create_time"></p>
-            <div data-provide="markdown" id="post_text">
+            <div id="post_text">
             </div>
           </div><!-- /.blog-post -->
           <nav>
@@ -91,11 +89,19 @@
     <!-- Placed at the end of the document so the pages load faster -->
     <script type="text/javascript" src="js/jquery.min.js"></script>
     <script type="text/javascript" src="js/firebase.js"></script>
-    <script type="text/javascript" src="js/prettify.js"></script>
     <script type="text/javascript" src="js/blog.js"></script>
+    <script type="text/javascript" src="js/pagedown/Markdown.Converter.js"></script>
+    <script type="text/javascript" src="js/pagedown/Markdown.Sanitizer.js"></script>
+    <script type="text/javascript" src="js/pagedown/Markdown.Editor.js"></script>
+    <script type="text/javascript" src="js/prettify.js"></script>       
+    <script type="text/javascript" src="js/pagedown/Markdown.Extra.js"></script>
     <script type="text/javascript">
       $(function(){
-
+        var converter = Markdown.getSanitizingConverter();
+        Markdown.Extra.init(converter, {
+          extensions: "all",
+          highlighter: "prettify"
+        });
         function switch2BlogView() {
           var blogKey = $(this).attr("data-provide");
           $("#loading").toggle();
@@ -160,7 +166,8 @@
           $("#post_text").empty();
           $("#create_time").empty();
           $("#post_title").empty();
-          $(data.text).appendTo($("#post_text"));
+          //$(data.text).appendTo($("#post_text"));
+          $("#post_text").html(converter.makeHtml(data.text));
           $("#create_time").text(data.createTime);
           $("#post_title").text(data.title);
           if(data.tagNames) {
