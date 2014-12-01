@@ -7,12 +7,13 @@
     <meta name="description" content="">
     <meta name="author" content="">
 
-    <title>Post Management</title>
+    <title>Blog Management</title>
     <!-- Bootstrap core CSS -->
     <link href="css/bootstrap.min.css" rel="stylesheet">
     <!-- Custom styles for this template -->
     <link href="css/blog.css" rel="stylesheet">
-    <link href="css/bootstrap-markdown.min.css" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="css/editor.css" />
+    <link href="css/prettify.css" type="text/css" rel="stylesheet" />
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
       <script src="http://cdn.bootcss.com/html5shiv/3.7.0/html5shiv.js"></script>
@@ -32,42 +33,54 @@
     </div>
 
     <div class="container blog-admin">
-      <div class="blog-header"></div>
       <div class="row">
-        <table class="table table-hover"  id="blogs_list"> <!-- list blogs-->
+        <div id="login_form"> 
+            <div class="form-group text-center">
+             <button type="submit" class="btn btn-primary btn-lg" id="login_btn">Login in with GitHub </button>
+            </div>
+        </div> <!-- login form -->
+      </div>  
+
+      <div class="row">
+        <table class="table table-hover"  id="blogs_list" style="display:none"> <!-- list blogs-->
           <thead>
             <tr><td colspan="4" class="text-right"><a href="#" id="add_post"><strong>发布文章</strong></a></td></tr>
           </thead>
           <tbody>
           </tbody>
-        </table>
+        </table><!-- blog list -->
+      </div>
 
-        <form role="form" method="post" id="blog_form" style="display:none"> <!-- add blog form-->
-           <div class="form-group">
-            <input name="title" type="text" placeholder="Title?" class="form-control" />
+
+      <div class="row" id="blog_form" style="display:none;margin-top:10px">
+       <!--  <form role="form" method="post" id="blog_form" style="display:none"> add blog form-->
+          <div class="col-sm-4">
+            <input name="title" type="text" placeholder="Title?" class="form-control input-sm" />
             <input name="id" type="hidden" id="post_id"/>
             <input name="tags" type="hidden" id="create_time"/>
-           </div>
-          <div class="form-group" id="blog_tags">
-            
           </div>
-           <div class="form-group">
-            <textarea name="content" data-provide="markdown" rows="30" id="post_text"></textarea>
+          <div class="col-sm-6" id="blog_tags">    
           </div>
-          <div class="form-group">
-            <button type="submit" class="btn btn-primary" id="post_save">Save</button>
-            <button type="button" class="btn btn-primary" id="return_btn">Return</button>
+          <div class="col-sm-2" id="blog_tags">  
+              <button type="button" class="btn btn-sm btn-primary" id="return_btn">Return</button>
+              <button type="submit" class="btn  btn-sm btn-primary" id="post_save">Save</button>
           </div>
-        </form> 
-
-        <div id="login_form"> <!-- login form -->
-            <div class="form-group text-center">
-             <button type="submit" class="btn btn-primary btn-lg" id="login_btn">Login in with GitHub </button>
-            </div>
-        </div>
-      </div><!-- /.row -->
+       <!-- </form> -->
+      </div>  
+      <div class="row" style="display:none" id="blog_editor">
+          <div class="col-sm-6">
+              <div class="wmd-panel">
+                  <div id="wmd-button-bar"></div>
+                  <textarea class="wmd-input" id="wmd-input" name="content"></textarea>
+              </div>
+          </div>
+          <div class="col-sm-6">
+              <div id="wmd-preview" class="wmd-panel wmd-preview"></div>
+          </div>
+      </div>
 
     </div><!-- /.container -->
+
 
     <div class="blog-footer">
       <p>Blog built with <a href="http://getbootstrap.com">Bootstrap</a> by <a href="github.com/niechang">@Chad</a>.</p>
@@ -77,14 +90,20 @@
     <!-- Placed at the end of the document so the pages load faster -->
     <script type="text/javascript" src="js/jquery.min.js"></script>
     <script type="text/javascript" src="js/firebase.js"></script>
-    <script type="text/javascript" src="js/bootstrap-markdown.js"></script>
     <script type="text/javascript" src="js/blog.js"></script>
+
+    <script type="text/javascript" src="js/pagedown/Markdown.Converter.js"></script>
+    <script type="text/javascript" src="js/pagedown/Markdown.Sanitizer.js"></script>
+    <script type="text/javascript" src="js/pagedown/Markdown.Editor.js"></script>
+    <script type="text/javascript" src="js/prettify.js"></script>       
+    <script type="text/javascript" src="js/pagedown/Markdown.Extra.js"></script>
     <script>
 
       $(function(){
         var tagsLoaded = false,
             originTags = [],
-            login = false;
+            login = false,
+            converter;
         //adding a post
         $("#add_post").click(function (){
             var $this = $(this);
@@ -99,16 +118,32 @@
             toggleView();
         });
 
+        function showEditor() {
+          if(!converter) {
+            converter = Markdown.getSanitizingConverter();
+            Markdown.Extra.init(converter, {
+              extensions: "all",
+              highlighter: "prettify"
+            });
+            var editor = new Markdown.Editor(converter);
+            editor.hooks.chain("onPreviewRefresh", prettyPrint); // google code prettify
+            editor.run();
+          }
+        }
+
         function clearForm() {
             $("input[name='title']").val("");
             $("input[type='checkbox']").removeAttr("checked");
-            $("#post_text").val("");
+            $("textarea[name='content']").val("");
             $("#post_id").val("");
+            $("#wmd-preview").empty();
         }
 
         function toggleView() {
             $("#blog_form").toggle();
             $("#blogs_list").toggle();
+            $("#blog_editor").toggle();
+            showEditor();
         }    
 
         $("#return_btn").click(function() {
@@ -117,7 +152,7 @@
         //save blog clicked
         $("#post_save").click(function() {
           var title = $("input[name='title']").val() || "";
-          var text = $("#post_text").val() || "";
+          var text = $("#wmd-input").val() || "";
           var id = $("#post_id").val() || "";
           var createTime = $("#create_time").val() || "";
           var tags = []; 
@@ -135,6 +170,8 @@
             BLOG.Util.saveBlog(item, text, originTags, function () {
                 alert("Save successfully!");
             });
+          } else {
+            alert("Please input title, tags and content to add!")
           }
           return false;
         });
@@ -160,10 +197,13 @@
             clearForm();
             BLOG.Util.loadBlog(blogKey, false, function(blog) {
                  $("input[name='title']").val(blog.title);
-                 $("#post_text").val(blog.text);
+                 $("#wmd-input").val(blog.text);
+                 if(converter) {
+                    $("#wmd-preview").html(converter.makeHtml(blog.text));
+                    prettyPrint();
+                 }
                  $("#post_id").val(blogKey);
                  $("#create_time").val(blog.createTime);
-                 $("#blog_form").show();
                  originTags = blog.tags;
                  $.each(blog.tags,function(n,tag) {
                     $("input[value=" + tag +"]").attr("checked","true");
@@ -172,19 +212,20 @@
         }
 
         function switch2ListView() {
-            BLOG.Util.loadAll(function (blogs) {
-                var $table = $("#blogs_list"),
+            var $table = $("#blogs_list"),
                     $td,
                     $tbody = $table.children("tbody");
-                $tbody.empty();
+            $table.show();
+            $tbody.empty();
+            BLOG.Util.loadAll(function (blogs) {
                 $.each(blogs, function(n,blog) {
-                  $link = $("<a href='index.html?id=" + blog.key + "'>").text(blog.title);
-                  $editLink = $("<a href='#' data-provide='" + blog.key + "'>").text("编辑");
-                  $editLink.click(editBlog);
-                  $td = $("<td>").append($link);
-                  $("<tr/>").append($td).append($("<td>").text(blog.tagNames))
-                      .append($("<td>").text(blog.createTime)).append($("<td>").append($editLink))
-                      .appendTo($tbody);   
+                $link = $("<a href='index.html?id=" + blog.key + "'>").text(blog.title);
+                $editLink = $("<a href='#' data-provide='" + blog.key + "'>").text("编辑");
+                $editLink.click(editBlog);
+                $td = $("<td>").append($link);
+                $("<tr/>").append($td).append($("<td>").text(blog.tagNames))
+                    .append($("<td>").text(blog.createTime)).append($("<td>").append($editLink))
+                    .appendTo($tbody);
                });
             });
         }
@@ -202,21 +243,6 @@
             });
           }
         }
-
-        /*function switch2ItemView(data) {
-            $("#blog_form").show();
-            if(tagsLoaded) {
-              BLOG.Util.loadTags(function(tags) {
-                  $.each(tags,function(n,tag) {
-                     if(tag) {
-                        $("<label class='checkbox-inline'/>").text(tag.name)
-                          .append($("<input type='checkbox'  value='" + n + "'/>")).appendTo($("#blog_tags"));
-                     }
-                  });
-                  tagsLoaded = true;
-              });
-            }
-        }*/
 
         //login button clicked
         $("#login_btn").click(function(e){
