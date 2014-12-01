@@ -137,7 +137,7 @@ h6, .h6 {
 
 /* Pagination */
 .pager {
-  margin-bottom: 60px;
+  margin-bottom: 30px;
   text-align: left;
 }
 .pager > li > a {
@@ -152,7 +152,7 @@ h6, .h6 {
  */
 
 .blog-post {
-  margin-bottom: 60px;
+  margin-bottom: 30px;
 }
 .blog-post-title {
   margin-bottom: 5px;

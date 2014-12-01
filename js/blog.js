@@ -15,6 +15,9 @@ $.extend({
 });
 
 BLOG = {};
+
+
+
 (function(){
 	var blogsRef = new Firebase('https://blistering-inferno-5110.firebaseio.com/blogs');
 	var tagsRef = new Firebase('https://blistering-inferno-5110.firebaseio.com/tags');
@@ -29,27 +32,6 @@ BLOG = {};
 	function date2String(date) {
 		return date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + ((date.getDate() > 9) ? date.getDate() : "0" + date.getDate())
 				+ " " + date.getHours() + ":" + date.getMinutes();
-	}
-	BLOG.Util = {};
-
-	BLOG.Util.login = function (cb) {
-		ref.authWithOAuthPopup('github', function(err, user) {
-		 	  if (err) {
-                console.log(err, 'error');
-                cb(err);
-            } else if (user) {
-                cb(user);
-            }
-		});
-	}
-
-	BLOG.Util.validateAuth = function (authData) {
-		return authData && authData.uid === "github:2278081";
-	}
-
-	BLOG.Util.getAuth = function (cb) {
-		var authData = ref.getAuth();
-		cb(authData);
 	}
 
 	//items in first but not in second array
@@ -78,48 +60,6 @@ BLOG = {};
 			}
 		}
 		return {max:max, min:min};
-	}
-
-	/*
-	 * add or update a blog
-	 * @property {int} [key]
-	 * @property {string} title
-	 * @property {int[]}  tags
-	 * @param {string} text
-	 */
-	BLOG.Util.saveBlog = function(item, text, oldTags, cb) {
-		var blogKey, update = false, blogItem, addTagRefs, rmTagRefs, 
-			rmTags, addTags, refs;
-		if(item.key && !isNaN(item.key)) {
-			blogKey = item.key;
-			update = true;
-		} else {
-			blogKey = count;
-		}
-		if(!update) {
-			item.createTime = date2String(new Date());
-		}
-		blogsRef.child(blogKey).set(item); //save item
-		textsRef.child(blogKey).set({ //saving blog text content
-			text: text
-		});
-		if (update) { //update a post
-			rmTags = inANotB(oldTags, item.tags); //need remove
-			addTags = inANotB(item.tags, oldTags); //need add
-			if (rmTags.length > 0) {
-				rmTagRefs = getTagRefs(rmTags);
-				removeTags(rmTagRefs, blogKey);
-			} 
-			if (addTags.length > 0) {
-				addTagRefs = getTagRefs(addTags);
-				saveTags(addTagRefs, blogKey);
-			} 
-			return;
-		} else { //add a post
-			addTagRefs = getTagRefs(item.tags);
-			saveTags(addTagRefs, blogKey);
-			count++;
-		}
 	}
 
 	function getTagRefs(tags) {
@@ -158,6 +98,131 @@ BLOG = {};
 			});
 		});	
 	}
+
+	function getBlog(key,cb) {
+		var blog, tagNames = [];
+		blogsRef.child(key).once("value",function(snapshot) {
+			blog = snapshot.val();
+  			if (TAGS_CACHE && blog && blog.tags) {
+  				$.each(blog.tags,function(n,tag) {
+  					tagNames.push(TAGS_CACHE[tag].name);
+  				});
+  				blog.tagNames = tagNames;
+  			}
+  			textsRef.child(snapshot.key()).on("child_added", function (snap){
+  				blog.text = snap.val();
+  				cb(blog);
+  			});
+		});
+	}
+
+	function getTagNames(tags, cachedTag) {
+       var name = "";
+       $.each(tags, function(n,tag) {
+          name += TAGS_CACHE[tag].name + " "; 
+       });
+       return name;
+    }
+	//@private load all blogs
+	function loadBlogs(tags, cb){
+		blogsRef.once("value",function(snapshot) {
+			var blogs = snapshot.val(),
+				blogArray = [];
+			if(blogs) {
+				$.each(blogs, function(n, blog) {
+					blog.key = n;
+					blog.tagNames = getTagNames(blog.tags);
+					blogArray.unshift(blog);
+				});
+				cb(blogArray);
+			}
+		});
+	}
+
+
+	BLOG.Util = BLOG.Markdown = {};
+
+	var converter;
+
+	BLOG.Markdown.getConverter = function (){
+		if(!converter) {
+			converter = Markdown.getSanitizingConverter();
+			Markdown.Extra.init(converter, {
+			  extensions: "all",
+			  highlighter: "prettify",
+			  table_class: "table table-striped table-bordered"
+			});
+		}
+		return converter;
+	}
+
+	BLOG.Util.login = function (cb) {
+		ref.authWithOAuthPopup('github', function(err, user) {
+		 	  if (err) {
+                console.log(err, 'error');
+                cb(err);
+            } else if (user) {
+                cb(user);
+            }
+		});
+	}
+
+	BLOG.Util.validateAuth = function (authData) {
+		return authData && authData.uid === "github:2278081";
+	}
+
+	BLOG.Util.getAuth = function (cb) {
+		var authData = ref.getAuth();
+		cb(authData);
+	}
+
+	
+
+	/*
+	 * add or update a blog
+	 * @property {int} [key]
+	 * @property {string} title
+	 * @property {int[]}  tags
+	 * @param {string} text
+	 */
+	BLOG.Util.saveBlog = function(item, text, oldTags, cb) {
+		var blogKey, update = false, blogItem, addTagRefs, rmTagRefs, 
+			rmTags, addTags, refs;
+		if(item.key && !isNaN(item.key)) {
+			blogKey = item.key;
+			update = true;
+		} else {
+			blogKey = count;
+		}
+		if(!update) {
+			item.createTime = date2String(new Date());
+		}
+		blogsRef.child(blogKey).set(item); //save item
+		textsRef.child(blogKey).set({ //saving blog text content
+			text: text
+		}, function () {
+			cb && cb();
+		});
+		if (update) { //update a post
+			rmTags = inANotB(oldTags, item.tags); //need remove
+			addTags = inANotB(item.tags, oldTags); //need add
+			if (rmTags.length > 0) {
+				rmTagRefs = getTagRefs(rmTags);
+				removeTags(rmTagRefs, blogKey);
+			} 
+			if (addTags.length > 0) {
+				addTagRefs = getTagRefs(addTags);
+				saveTags(addTagRefs, blogKey);
+			} 
+			return;
+		} else { //add a post
+			addTagRefs = getTagRefs(item.tags);
+			saveTags(addTagRefs, blogKey);
+			count++;
+		}
+	}
+
+	
 
 	BLOG.Util.loadTags = function (cb) {
 		tagsRef.once("value", function (snap){
@@ -209,23 +274,7 @@ BLOG = {};
 		return current > 0 && count > 0;
 	}
 
-	function getBlog(key,cb) {
-		var blog, tagNames = [];
-		blogsRef.child(key).once("value",function(snapshot) {
-			blog = snapshot.val();
-  			if (TAGS_CACHE && blog && blog.tags) {
-  				$.each(blog.tags,function(n,tag) {
-  					tagNames.push(TAGS_CACHE[tag].name);
-  				});
-  				blog.tagNames = tagNames;
-  			}
-  			textsRef.child(snapshot.key()).on("child_added", function (snap){
-  				blog.text = snap.val();
-  				cb(blog);
-  			});
-		});
-	}
-
+	
 
 	BLOG.Util.loadBlog = function(key,latest,cb) {
 		current = parseInt(key, 10);
@@ -243,28 +292,7 @@ BLOG = {};
 		}
 	}
 
-	function getTagNames(tags, cachedTag) {
-       var name = "";
-       $.each(tags, function(n,tag) {
-          name += TAGS_CACHE[tag].name + " "; 
-       });
-       return name;
-    }
-	//@private load all blogs
-	function loadBlogs(tags, cb){
-		blogsRef.once("value",function(snapshot) {
-			var blogs = snapshot.val(),
-				blogArray = [];
-			if(blogs) {
-				$.each(blogs, function(n, blog) {
-					blog.key = n;
-					blog.tagNames = getTagNames(blog.tags);
-					blogArray.unshift(blog);
-				});
-				cb(blogArray);
-			}
-		});
-	}
+	
 
 	/**
      * load all blogs without text content

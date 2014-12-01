@@ -33,13 +33,18 @@
     </div>
 
     <div class="container blog-admin">
+      <div class="row" style="margin:20px;" id="login_form">
+        <div class="col-sm-12 text-center">
+         <button type="submit" class="btn btn-primary btn-lg" id="login_btn">Login in with GitHub </button>
+        </div>
+        <!-- login form -->
+      </div>
+      
       <div class="row">
-        <div id="login_form"> 
-            <div class="form-group text-center">
-             <button type="submit" class="btn btn-primary btn-lg" id="login_btn">Login in with GitHub </button>
-            </div>
-        </div> <!-- login form -->
-      </div>  
+         <div class="col-sm-12 text-center blog-loading" id="loading"></div>  
+      </div>
+      
+        
 
       <div class="row">
         <table class="table table-hover"  id="blogs_list" style="display:none"> <!-- list blogs-->
@@ -49,6 +54,7 @@
           <tbody>
           </tbody>
         </table><!-- blog list -->
+       
       </div>
 
 
@@ -61,9 +67,9 @@
           </div>
           <div class="col-sm-6" id="blog_tags">    
           </div>
-          <div class="col-sm-2" id="blog_tags">  
-              <button type="button" class="btn btn-sm btn-primary" id="return_btn">Return</button>
-              <button type="submit" class="btn  btn-sm btn-primary" id="post_save">Save</button>
+          <div class="col-sm-2 text-right" id="blog_tags">  
+              <button type="button" class="btn btn-sm btn-primary" id="return_btn">返回</button>
+              <button type="submit" class="btn  btn-sm btn-primary" id="post_save">保存</button>
           </div>
        <!-- </form> -->
       </div>  
@@ -90,13 +96,13 @@
     <!-- Placed at the end of the document so the pages load faster -->
     <script type="text/javascript" src="js/jquery.min.js"></script>
     <script type="text/javascript" src="js/firebase.js"></script>
-    <script type="text/javascript" src="js/blog.js"></script>
-
     <script type="text/javascript" src="js/pagedown/Markdown.Converter.js"></script>
     <script type="text/javascript" src="js/pagedown/Markdown.Sanitizer.js"></script>
     <script type="text/javascript" src="js/pagedown/Markdown.Editor.js"></script>
     <script type="text/javascript" src="js/prettify.js"></script>       
     <script type="text/javascript" src="js/pagedown/Markdown.Extra.js"></script>
+    <script type="text/javascript" src="js/blog.js"></script>
+
     <script>
 
       $(function(){
@@ -118,16 +124,21 @@
             toggleView();
         });
 
+        //adjustEditorHeight();
+
+        function adjustEditorHeight() {
+           var h = $(window).height() - 200;
+           $("#wmd-input").height(h);
+           $("#wmd-preview").height(h);
+        }
+
         function showEditor() {
           if(!converter) {
-            converter = Markdown.getSanitizingConverter();
-            Markdown.Extra.init(converter, {
-              extensions: "all",
-              highlighter: "prettify"
-            });
+            converter = BLOG.Markdown.getConverter();
             var editor = new Markdown.Editor(converter);
             editor.hooks.chain("onPreviewRefresh", prettyPrint); // google code prettify
             editor.run();
+            adjustEditorHeight();
           }
         }
 
@@ -213,20 +224,23 @@
 
         function switch2ListView() {
             var $table = $("#blogs_list"),
-                    $td,
-                    $tbody = $table.children("tbody");
+                $td,
+                $tbody = $table.children("tbody");
             $table.show();
             $tbody.empty();
+            $("#loading").toggle();
             BLOG.Util.loadAll(function (blogs) {
+                $("#loading").toggle();
                 $.each(blogs, function(n,blog) {
-                $link = $("<a href='index.html?id=" + blog.key + "'>").text(blog.title);
-                $editLink = $("<a href='#' data-provide='" + blog.key + "'>").text("编辑");
-                $editLink.click(editBlog);
-                $td = $("<td>").append($link);
-                $("<tr/>").append($td).append($("<td>").text(blog.tagNames))
-                    .append($("<td>").text(blog.createTime)).append($("<td>").append($editLink))
-                    .appendTo($tbody);
+                  $link = $("<a href='index.html?id=" + blog.key + "'>").text(blog.title);
+                  $editLink = $("<a href='#' data-provide='" + blog.key + "'>").text("编辑");
+                  $editLink.click(editBlog);
+                  $td = $("<td>").append($link);
+                  $("<tr/>").append($td).append($("<td>").text(blog.tagNames))
+                      .append($("<td>").text(blog.createTime)).append($("<td>").append($editLink))
+                      .appendTo($tbody);
                });
+
             });
         }
 
