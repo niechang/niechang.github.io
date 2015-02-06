@@ -14,6 +14,14 @@ function writeFile(path, data, cb) {
 	fs.writeFile(path, JSON.stringify(data), cb);
 }
 
+function blogDetailExportCallback() {
+	index++;
+	console.log(index + " blog saved successfully");
+	if(index === count) {
+		console.log("finished");
+	}
+}
+
 function exprotTags(cb){
 	var path = "json_data/tags.json";
 	tagsRef.once("value",function(snapshot) {
@@ -22,14 +30,6 @@ function exprotTags(cb){
 			writeFile(path, tags, cb);
 		}
 	});
-}
-
-function blogDetailExportCallback() {
-	index++;
-	console.log(index + " blog saved successfully");
-	if(index === count) {
-		console.log("finished");
-	}
 }
 
 function exprotBlogsBrief(cb) {
@@ -42,27 +42,33 @@ function exprotBlogsBrief(cb) {
 	});
 }
 
-function exprotBlogsDetail(cb) {
+function exprotBlogsDetail() {
 	textsRef.once("value", function(snapshot) {
 		var blogDetails = snapshot.val();
 		if(!blogDetails) {
 			return;
 		}
 		count = blogDetails.length;
+		var i = 0;
 		blogDetails.forEach(function(detail) {
 			writeFile("json_data/blog_" + index + ".json", detail, blogDetailExportCallback);
-			index++;
-			if (index % 10 === 0) {
+			if ((i++) % 10 === 0) {
 				setTimeout(function(){}, 1000 * 10); //sleep 10 seconds, to prevent too many files
 			}
 		});
 	});
 }
-exprotBlogsDetail();
-/*setTimeout(function() {
-	//writeTags(function(){ console.log("export tags success"); });
-	exprotBlogsDetail(function(){ console.log("export blogs success"); });
-}, 10000);*/
-/*writeTags(function(){
-	console.log("success");
-});*/
+
+function exportBlogs() {
+	exprotTags(function(err) {
+		if(!err)
+			console.log("export tags successfully");
+	});
+	exprotBlogsBrief(function(err) {
+		if(!err)
+			console.log("export blogs brief information successfully");
+	});
+	setTimeout(exprotBlogsDetail, 5 * 1000); //this will start 5 seconds later
+}
+
+exportBlogs();
