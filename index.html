@@ -101,7 +101,7 @@
         function switch2BlogView() {
           var blogKey = $(this).attr("data-provide");
           $("#loading").toggle();
-          BLOG.Util.loadBlog(blogKey, false, function(blog){
+          BLOG.Util.loadBlog(blogKey, function(blog){
               renderBlog(blog);
               $("#loading").toggle();
               $("#tag_content").hide();
@@ -120,14 +120,14 @@
                var  $td,
                     $link,
                     tagContent = $("#tag_content"),
-                    table = tagContent.children("table"); 
+                    table = tagContent.children("table"),
+                    tagName = BLOG.Util.getTag(tagKey).name; 
                table.empty();
                $.each(blogs, function(n,blog) {
-                  //tagName = getTagNames(blog.tags);
                   $link = $("<a href='#' data-provide='" + blog.key + "'>").text(blog.title);
                   $link.click(switch2BlogView);
                   $td = $("<td>").append($link);
-                  $("<tr/>").append($td).append($("<td>").text(blog.tagNames))
+                  $("<tr/>").append($td).append($("<td>").text(tagName))
                       .append($("<td>").text(blog.createTime)).appendTo(table);   
                });
                $("#loading").toggle();
@@ -136,25 +136,9 @@
           });
         }
 
-        //body load rendering tags
-        BLOG.Util.loadTags(function(tags) {
-          var count = 0, text, $li;
-          $.each(tags,function(n,tag) {
-             if(tag) {
-                text = tag.name;
-                count = (tag.posts && tag.posts.length) || 0;
-                if(count) 
-                  text = text + " (" + count + ")";  
-                $li = $("<li data-provide='"+ n +"' />").append($("<a href='#'/>").text(text)).appendTo($("#blog_tags"));
-                $li.click(switch2TagView);
-             }
-          });
-        });
-
-
         function hanldleBtns() {
-          $("#next_blog").toggleClass("disabled", !BLOG.Util.hasNext());
-          $("#pre_blog").toggleClass("disabled", !BLOG.Util.hasPrevious());
+            $("#next_blog").toggleClass("disabled", !BLOG.Util.hasNext());
+            $("#pre_blog").toggleClass("disabled", !BLOG.Util.hasPrevious());
         }
 
         function renderBlog(data) {
@@ -166,9 +150,9 @@
           $("#post_text").html(converter.makeHtml(data.text));
           $("#create_time").text(data.createTime);
           $("#post_title").text(data.title);
-          if(data.tagNames) {
-            $.each(data.tagNames,function(n,tag){
-                $("<span class='label label-info'/>").text(tag).appendTo($("#create_time"));
+          if(data.tags) {
+            $.each(data.tags,function(n,tag){
+                $("<span class='label label-info'/>").text(BLOG.Util.getTag(tag).name).appendTo($("#create_time"));
             });
           }
           $("pre").addClass("prettyprint");
@@ -177,19 +161,35 @@
 
         //body load rendering the latest post
         function init() {
-          $("#loading").toggle();
-          var id = $.getURLParam("id"), latest = false;
-          if(!id || isNaN(id)) {
-             latest = true;
-             id = 0; 
-          } else {
-             id = parseInt(id, 10);
-          }
-          BLOG.Util.loadBlog(id, latest, function(data) {
-              renderBlog(data);
-              $("#loading").toggle();
-              hanldleBtns();
-          });
+            $("#loading").toggle();
+            var id = $.getURLParam("id"),
+                cache = $.getURLParam("cache");
+            if(cache) {
+              BLOG.Util.cache = true;
+            }
+            if(!id || isNaN(id)) {
+               id = -1; 
+            } else {
+               id = parseInt(id, 10);
+            }
+            var tagsCallBack = function(tags) {
+                var count = 0, text, $li;
+                $.each(tags, function(n, tag) {
+                   if(tag) {
+                      text = tag.name;
+                      count = (tag.posts && tag.posts.length) || 0;
+                      if(count) 
+                        text = text + " (" + count + ")";  
+                      $li = $("<li data-provide='"+ n +"' />").append($("<a href='#'/>").text(text)).appendTo($("#blog_tags"));
+                      $li.click(switch2TagView);
+                   }
+                });
+            }
+            BLOG.Util.loadBlog(id, function(data) {
+                renderBlog(data);
+                $("#loading").toggle();
+                hanldleBtns();
+            }, tagsCallBack);
         }
 
         //previous button

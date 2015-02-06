@@ -67,7 +67,7 @@
           </div>
           <div class="col-sm-6" id="blog_tags">    
           </div>
-          <div class="col-sm-2 text-right" id="blog_tags">  
+          <div class="col-sm-2 text-right" id="blog_handle">  
               <button type="button" class="btn btn-sm btn-primary" id="return_btn">返回</button>
               <button type="submit" class="btn  btn-sm btn-primary" id="post_save">保存</button>
           </div>
@@ -106,25 +106,13 @@
     <script>
 
       $(function(){
-        var tagsLoaded = false,
-            originTags = [],
-            login = false,
+        var originTags = [],
             converter;
         //adding a post
         $("#add_post").click(function (){
-            var $this = $(this);
-            $this.addClass("disabled");
-            loadTags();
             clearForm();
-            BLOG.Util.countPosts(function(data){
-                if(data >= 0) {
-                    $this.removeClass("disabled");
-                }
-            });
             toggleView();
         });
-
-        //adjustEditorHeight();
 
         function adjustEditorHeight() {
            var h = $(window).height() - 200;
@@ -134,11 +122,11 @@
 
         function showEditor() {
           if(!converter) {
-            converter = BLOG.Markdown.getConverter();
-            var editor = new Markdown.Editor(converter);
-            editor.hooks.chain("onPreviewRefresh", prettyPrint); // google code prettify
-            editor.run();
-            adjustEditorHeight();
+              converter = BLOG.Markdown.getConverter();
+              var editor = new Markdown.Editor(converter);
+              editor.hooks.chain("onPreviewRefresh", prettyPrint); // google code prettify
+              editor.run();
+              adjustEditorHeight();
           }
         }
 
@@ -162,64 +150,51 @@
         });
         //save blog clicked
         $("#post_save").click(function() {
-          var title = $("input[name='title']").val() || "";
-          var text = $("#wmd-input").val() || "";
-          var id = $("#post_id").val() || "";
-          var createTime = $("#create_time").val() || "";
-          var tags = []; 
-          $("input[type='checkbox']:checked").each(function(){ 
-              tags.push($(this).val()); 
-          }); 
+            var title = $("input[name='title']").val() || "";
+            var text = $("#wmd-input").val() || "";
+            var id = $("#post_id").val() || "";
+            var createTime = $("#create_time").val() || "";
+            var tags = []; 
+            $("input[type='checkbox']:checked").each(function(){ 
+                tags.push($(this).val()); 
+            }); 
 
-          if (title != "" && text != "" && tags.length > 0) {
-            item = {
-              title: title,
-              createTime: createTime,
-              tags: tags,
-              key: id
-            };
-            BLOG.Util.saveBlog(item, text, originTags, function () {
-                alert("Save successfully!");
-            });
-          } else {
-            alert("Please input title, tags and content to add!")
-          }
-          return false;
+            if (title != "" && text != "" && tags.length > 0) {
+              item = {
+                title: title,
+                createTime: createTime,
+                tags: tags,
+                key: id
+              };
+              BLOG.Util.saveBlog(item, text, originTags, function () {
+                  alert("Save successfully!");
+              });
+            } else {
+                alert("Please input title, tags and content to add!")
+            }
+            return false;
         });
-
-        //get auth       
-        BLOG.Util.getAuth(function(data) {
-          afterLogin(data);
-        });
-        
-        function afterLogin(data) {
-          if(BLOG.Util.validateAuth(data)) {
-             $('#login_form').hide();
-             login = true;
-             switch2ListView();
-          }
-        }
 
         function editBlog() {
             var blogKey = $(this).attr("data-provide"),
                 $title = $("input[name='title']");
             toggleView();
-            loadTags();
             clearForm();
-            BLOG.Util.loadBlog(blogKey, false, function(blog) {
-                 $("input[name='title']").val(blog.title);
-                 $("#wmd-input").val(blog.text);
-                 if(converter) {
-                    $("#wmd-preview").html(converter.makeHtml(blog.text));
-                    prettyPrint();
-                 }
-                 $("#post_id").val(blogKey);
-                 $("#create_time").val(blog.createTime);
-                 originTags = blog.tags;
-                 $.each(blog.tags,function(n,tag) {
-                    $("input[value=" + tag +"]").attr("checked","true");
-                 });
-            });
+            var renderBlog = function(blog) {
+               $("input[name='title']").val(blog.title);
+               $("#wmd-input").val(blog.text);
+               if(converter) {
+                  $("#wmd-preview").html(converter.makeHtml(blog.text));
+                  prettyPrint();
+               }
+               $("#post_id").val(blogKey);
+               $("#create_time").val(blog.createTime);
+               originTags = blog.tags;
+               $.each(blog.tags,function(n,tag) {
+                  $("input[value=" + tag +"]").attr("checked","true");
+               });
+            }
+            BLOG.Util.loadBlog(blogKey, renderBlog);
         }
 
         function switch2ListView() {
@@ -229,47 +204,54 @@
             $table.show();
             $tbody.empty();
             $("#loading").toggle();
-            BLOG.Util.loadAll(function (blogs) {
+            var renderBlogs = function(blogs) {
                 $("#loading").toggle();
-                $.each(blogs, function(n,blog) {
+                $.each(blogs, function(n, blog) {
+                  var tagNames = BLOG.Util.getTagNames(blog.tags);
                   $link = $("<a href='index.html?id=" + blog.key + "'>").text(blog.title);
                   $editLink = $("<a href='#' data-provide='" + blog.key + "'>").text("编辑");
                   $editLink.click(editBlog);
                   $td = $("<td>").append($link);
-                  $("<tr/>").append($td).append($("<td>").text(blog.tagNames))
+                  $("<tr/>").append($td).append($("<td>").text(tagNames))
                       .append($("<td>").text(blog.createTime)).append($("<td>").append($editLink))
                       .appendTo($tbody);
                });
-
-            });
-        }
-
-        function loadTags() {
-          if(!tagsLoaded) {
-            BLOG.Util.loadTags(function(tags) {
+            };
+            var renderTags = function(tags) {
+                if($("#blog_tags").children("input").length > 0) {
+                  return;
+                }
                 $.each(tags,function(n,tag) {
-                   if(tag) {
+                    if(tag) {
                       $("<label class='checkbox-inline'/>").text(tag.name)
                         .append($("<input type='checkbox'  value='" + n + "'/>")).appendTo($("#blog_tags"));
-                   }
+                    }
                 });
-                tagsLoaded = true;
-            });
+            };
+            BLOG.Util.loadAll(renderBlogs, renderTags);
+        }
+
+        //body load check weather user login      
+        BLOG.Util.getAuth(function(data) {
+            afterLogin(data);
+        });
+        
+        function afterLogin(data) {
+          if(BLOG.Util.validateAuth(data)) {
+             $('#login_form').hide();
+             switch2ListView();
           }
         }
 
         //login button clicked
         $("#login_btn").click(function(e){
-           BLOG.Util.login(function(user) {
-              afterLogin(user);
-           });
-           return false;
+            BLOG.Util.login(function(user) {
+                afterLogin(user);
+            });
+            return false;
         });
       });
     </script>
     
-    <!-- IE10 viewport hack for Surface/desktop Windows 8 bug 
-    <script src="js/ie10-viewport-bug-workaround.js"></script>
-    -->
   </body>
 </html>

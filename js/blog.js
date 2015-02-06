@@ -16,16 +16,14 @@ $.extend({
 
 BLOG = {};
 
-
-
 (function(){
 	var blogsRef = new Firebase('https://blistering-inferno-5110.firebaseio.com/blogs');
 	var tagsRef = new Firebase('https://blistering-inferno-5110.firebaseio.com/tags');
 	var textsRef = new Firebase('https://blistering-inferno-5110.firebaseio.com/texts');
 	var ref = new Firebase("https://blistering-inferno-5110.firebaseio.com/"); 
 
-	var TAGS_CACHE; // tags cache [{name:'',posts:[]},{}]
-	var BLOGS_CACHE = {}; //{{tagKey: {key: {}}}, ... }
+	var TAGS_CACHE; // tags cache
+	var BLOGS_CACHE; // blogs brief infomation cache
 
 	var count = -1, current = 0;
 
@@ -35,7 +33,7 @@ BLOG = {};
 	}
 
 	//items in first but not in second array
-	function inANotB(first,second) {
+	function inANotB(first, second) {
 		var result = [], i, j;
 		if(!first || !second) {
 			return result;
@@ -46,20 +44,6 @@ BLOG = {};
 			}
 		}
 		return result;
-	}
-
-	function maxAndmin(array) {
-		var max, min, i;
-		max = min = array[0];
-		for(i = 1; i < array.length; i++) {
-			if(array[i] > max) {
-				max = array[i];
-			}
-			if(array[i] < min) {
-				min = array[i];
-			}
-		}
-		return {max:max, min:min};
 	}
 
 	function getTagRefs(tags) {
@@ -99,44 +83,91 @@ BLOG = {};
 		});	
 	}
 
-	function getBlog(key,cb) {
+	//cache already load
+	function getBlog(key, cb) {
 		var blog, tagNames = [];
-		blogsRef.child(key).once("value",function(snapshot) {
-			blog = snapshot.val();
-  			if (TAGS_CACHE && blog && blog.tags) {
-  				$.each(blog.tags,function(n,tag) {
-  					tagNames.push(TAGS_CACHE[tag].name);
-  				});
-  				blog.tagNames = tagNames;
-  			}
-  			textsRef.child(snapshot.key()).on("child_added", function (snap){
-  				blog.text = snap.val();
-  				cb(blog);
-  			});
+		blog = BLOGS_CACHE[key];
+		textsRef.child(key).on("child_added", function (snap) { //fetch text content
+			blog.text = snap.val();
+			cb(blog);
 		});
 	}
 
-	function getTagNames(tags, cachedTag) {
-       var name = "";
-       $.each(tags, function(n,tag) {
-          name += TAGS_CACHE[tag].name + " "; 
-       });
-       return name;
-    }
-	//@private load all blogs
-	function loadBlogs(tags, cb){
-		blogsRef.once("value",function(snapshot) {
-			var blogs = snapshot.val(),
-				blogArray = [];
-			if(blogs) {
-				$.each(blogs, function(n, blog) {
-					blog.key = n;
-					blog.tagNames = getTagNames(blog.tags);
-					blogArray.unshift(blog);
-				});
-				cb(blogArray);
-			}
+	function loadTags(cb) {
+		var dtd = $.Deferred();
+		function task() {
+			tagsRef.once("value", function (snap){
+				TAGS_CACHE = snap.val();
+				cb && cb(TAGS_CACHE);
+				dtd.resolve();
+			});
+		}
+		task();
+		return dtd.promise();
+	}
+
+	/**
+	 * @private
+	 * set the count of blogs by query firebase
+	 * @param {funciton} callback function
+	 */
+	function countBlogs(cb) {
+		var dtd = $.Deferred();
+		function task() {
+			blogsRef.once("value", function(snap) {
+				var val = snap.val();
+				BLOGS_CACHE =  val;
+				if(!val) {
+					setCount(val); 
+				}
+				else {
+					setCount(val.length);
+				}
+				cb && cb(val);
+				dtd.resolve();
+			});
+		}
+		task();
+		return dtd.promise();
+	}
+
+	function getTagBlogs(tagKey) {
+		var tag = TAGS_CACHE[tagKey];
+		var blogArray = [];
+		$.each(tag.posts, function(i , blogId) {
+			blogArray.unshift(BLOGS_CACHE[blogId]);
 		});
+		return blogArray;
+	}
+
+    function setCount(val) {
+    	count = val;
+		current = current < 0 ? count - 1 : current;	
+    }
+
+	function loadCacheJSONTags(cb) {
+		return  $.get("node_work/json_data/tags.json", function(data) {
+						TAGS_CACHE = data;
+						cb && cb(data);
+				}, "json");
+	}
+
+	function loadCacheJSONBlogs() {
+		return  $.get("node_work/json_data/blogs.json", function(data) {
+					setCount(data.length);
+					BLOGS_CACHE = data;
+				}, "json");
+	}
+
+	function loadCacheJSONContent(id, cb) {
+		if(id < 0) {
+   			id = count - 1;
+   		}
+   		$.get("node_work/json_data/blog_" + id + ".json", function(data) {
+			var blog = BLOGS_CACHE[id];
+			blog.text = data.text;
+			cb(blog);
+		}, "json");
 	}
 
 
@@ -167,23 +198,29 @@ BLOG = {};
 		});
 	}
 
+	/**
+	 * @return boolean
+	 */
 	BLOG.Util.validateAuth = function (authData) {
 		return authData && authData.uid === "github:2278081";
 	}
 
+	/**
+     * @param {Function} callback function
+     * get the auth data
+	 */
 	BLOG.Util.getAuth = function (cb) {
 		var authData = ref.getAuth();
 		cb(authData);
 	}
-
 	
 
 	/*
 	 * add or update a blog
-	 * @property {int} [key]
-	 * @property {string} title
-	 * @property {int[]}  tags
-	 * @param {string} text
+	 * @property {Object} need to save item
+	 * @property {string} text content
+	 * @property {int[]}  oldTags
+	 * @param {function} call back function
 	 */
 	BLOG.Util.saveBlog = function(item, text, oldTags, cb) {
 		var blogKey, update = false, blogItem, addTagRefs, rmTagRefs, 
@@ -193,6 +230,7 @@ BLOG = {};
 			update = true;
 		} else {
 			blogKey = count;
+			item.key = blogKey; //
 		}
 		if(!update) {
 			item.createTime = date2String(new Date());
@@ -220,38 +258,25 @@ BLOG = {};
 			saveTags(addTagRefs, blogKey);
 			count++;
 		}
-	}
-
-	
-
-	BLOG.Util.loadTags = function (cb) {
-		tagsRef.once("value", function (snap){
-			TAGS_CACHE = snap.val();
-			cb(TAGS_CACHE);
-		});
-	}
+	}	
 	
 	BLOG.Util.getTag = function(key) {
 		return TAGS_CACHE[key];
 	}
 
-	BLOG.Util.countPosts = function (cb) {
-		blogsRef.once("value", function(snap) {
-			val = snap.val();
-			if(!val) { 
-				count = 0;
-			}
-			else {
-				count = Object.keys(val).length;
-			}
-			cb && cb(count);
-		});
-	}
+	BLOG.Util.getTagNames = function(tags) {
+       var name = "";
+       $.each(tags, function(n,tag) {
+          name += TAGS_CACHE[tag].name + " "; 
+       });
+       return name;
+    }
+
 
 	BLOG.Util.next = function (cb) {
 		if(current < count - 1) {
 			current++;
-			BLOG.Util.loadBlog(current,false,cb);
+			BLOG.Util.loadBlog(current, cb);
 		} else {
 			cb();
 		}
@@ -260,7 +285,7 @@ BLOG = {};
 	BLOG.Util.previous = function (cb) {
 		if(current > 0) {
 			current--;
-			BLOG.Util.loadBlog(current,false,cb);
+			BLOG.Util.loadBlog(current, cb);
 		} else {
 			cb();
 		}
@@ -274,71 +299,60 @@ BLOG = {};
 		return current > 0 && count > 0;
 	}
 
-	
-
-	BLOG.Util.loadBlog = function(key,latest,cb) {
+	/**
+	 * @param {int} key the blog id, if negative use the lateste blog id
+	 * @param {function} blogCallBack, the callback function to render blog
+	 * @param {function} tagsCallback, to render tags
+	 */
+	BLOG.Util.loadBlog = function(key, blogCallBack, tagsCallBack) {
 		current = parseInt(key, 10);
-		if(current < 0) {
-			cb();
+		if (BLOG.Util.cache) {
+			if(!BLOGS_CACHE) {
+				$.when(loadCacheJSONTags(tagsCallBack), loadCacheJSONBlogs()).then(function() {
+					loadCacheJSONContent(key, blogCallBack)
+				});
+			} else {
+				loadCacheJSONContent(key, blogCallBack);
+			}
 			return;
 		}
 		if (count === -1) {
-			BLOG.Util.countPosts(function () {
-				current = latest ? count - 1 : current;			
-				getBlog(current, cb);
-			});
+			$.when(loadTags(tagsCallBack)).then(countBlogs(function() {
+				getBlog(current, blogCallBack);
+			}));
 		} else {
-			getBlog(current, cb);
+			getBlog(current, blogCallBack);
 		}
 	}
 
-	
-
 	/**
-     * load all blogs without text content
+     * load all blogs without text content, first will load tags for cache then load blogs for cache
      * param {@Function} cb
 	 */
-	BLOG.Util.loadAll = function (cb) {
-		if (!TAGS_CACHE) {
-			BLOG.Util.loadTags(function(tags) {
-				loadBlogs(tags,cb);
-			});
+	BLOG.Util.loadAll = function (blogsCallBack, tagsCallBack) {
+		if(!BLOGS_CACHE) {
+			$.when(loadTags(tagsCallBack)).then(countBlogs(blogsCallBack));
 		} else {
-			loadBlogs(tags,cb);
+			tagsCallback(TAGS_CACHE);
+			blogsCallBack(BLOGS_CACHE);
 		}
 	}
 
 	/**
 	 * Get the blogs in the tag, and cache the blogs
+	 * @param {int} tagKey
+	 * @param {function} callback function
 	 */
 	BLOG.Util.getPosts = function (tagKey, cb) {
-		var tag = TAGS_CACHE[tagKey],
-			blogCache = BLOGS_CACHE["tags"+tagKey];
-		if(blogCache) {
-			cb(blogCache);
+		var tag = TAGS_CACHE[tagKey];
+		if(BLOGS_CACHE) {
+			cb(getTagBlogs(tagKey));
 			return;
 		}
-		if(tag && tag.posts && tag.posts.length > 0) {
-			var posts = tag.posts,
-				obj = maxAndmin(tag.posts),
-				min = "" + obj.min,
-				max = "" + obj.max,
-				blogArray = [];
-			blogsRef.orderByKey().startAt(min).endAt(max).once("value", function(snapshot) {
-				var blogs = snapshot.val();
-				if(blogs) {
-					$.each(blogs, function(n, blog) {
-						if(posts.indexOf(parseInt(n, 10)) > -1) {
-							blog.key = n;
-							blog.tagNames = getTagNames(blog.tags);
-							blogArray.unshift(blog);
-						}
-					});
-					BLOGS_CACHE["tags"+tagKey] = blogArray;
-					cb(blogArray);
-				}
-			});	
-		}  
+		blogsRef.once("value", function(snapshot) {
+			BLOGS_CACHE = snapshot.val();
+			cb(getTagBlogs(tagKey));
+		});
 	}
 	
 }());
