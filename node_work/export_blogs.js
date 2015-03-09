@@ -17,7 +17,7 @@ function writeFile(path, data, cb) {
 function blogDetailExportCallback() {
 	index++;
 	console.log(index + " blog saved successfully");
-	if(index === count) {
+	if(index === (count-1)) {
 		console.log("finished");
 	}
 }
@@ -51,7 +51,7 @@ function exprotBlogsDetail() {
 		count = blogDetails.length;
 		var i = 0;
 		blogDetails.forEach(function(detail) {
-			writeFile("json_data/blog_" + index + ".json", detail, blogDetailExportCallback);
+			writeFile("json_data/blog_" + i + ".json", detail, blogDetailExportCallback);
 			if ((i++) % 10 === 0) {
 				setTimeout(function(){}, 1000 * 10); //sleep 10 seconds, to prevent too many files
 			}
