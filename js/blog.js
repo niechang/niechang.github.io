@@ -188,7 +188,7 @@ BLOG = {};
 	}
 
 	BLOG.Util.login = function (cb) {
-		ref.authWithOAuthPopup('github', function(err, user) {
+		ref.authWithOAuthRedirect('github', function(err, user) {
 		 	  if (err) {
                 console.log(err, 'error');
                 cb(err);
